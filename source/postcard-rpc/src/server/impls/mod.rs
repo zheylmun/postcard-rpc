@@ -5,6 +5,9 @@
 #[cfg(feature = "embassy-usb-0_5-server")]
 pub mod embassy_usb_v0_5;
 
+#[cfg(feature = "embassy-usb-0_6-server")]
+pub mod embassy_usb_v0_6;
+
 #[cfg(feature = "embedded-io-async-0_6-server")]
 pub mod embedded_io_async_v0_6;
 
@@ -16,6 +19,7 @@ pub mod test_channels;
 
 #[cfg(any(
     feature = "embassy-usb-0_5-server",
+    feature = "embassy-usb-0_6-server",
     feature = "embedded-io-async-0_6-server",
 ))]
 pub(crate) mod embassy_shared {
@@ -50,12 +54,20 @@ pub(crate) mod embassy_shared {
     }
 
     /// Attempt to spawn the given token
-    pub fn embassy_spawn<Sp, S: Sized>(sp: &Sp, tok: SpawnToken<S>) -> Result<(), Sp::Error>
+    ///
+    /// In embassy-executor 0.10+, the error occurs at `SpawnToken` creation
+    /// time (when the task pool is full), and the actual spawn is infallible.
+    pub fn embassy_spawn<Sp, S: Sized>(
+        sp: &Sp,
+        tok: Result<SpawnToken<S>, SpawnError>,
+    ) -> Result<(), SpawnError>
     where
         Sp: WireSpawn<Error = SpawnError, Info = Spawner>,
     {
+        let tok = tok?;
         let info = sp.info();
-        info.spawn(tok)
+        info.spawn(tok);
+        Ok(())
     }
 }
 
